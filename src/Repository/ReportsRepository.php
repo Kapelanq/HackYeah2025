@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Reports;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -16,14 +17,19 @@ class ReportsRepository extends ServiceEntityRepository
         parent::__construct($registry, Reports::class);
     }
 
-    public function findReportsByTripId(string $tripId)
+    public function findReportsByTripId(string $tripId): array
     {
-        return $this->createQueryBuilder('r')
-            ->select('r')
+        $qb = $this->createQueryBuilder('r');
+
+        $qb->select('r')
+            ->addSelect('SUM(CASE WHEN rc.isGood = 1 THEN 1 ELSE 0 END) as positiveCount')
+            ->addSelect('SUM(CASE WHEN rc.isGood = 0 THEN 1 ELSE 0 END) as negativeCount')
+            ->leftJoin('r.reportsCount', 'rc')
             ->where('r.tripId = :tripId')
             ->setParameter('tripId', $tripId)
-            ->getQuery()
-            ->getResult();
+            ->groupBy('r.id');
+
+        return $qb->getQuery()->getArrayResult();
     }
 
     public function addReport(array $data): void
@@ -37,9 +43,22 @@ class ReportsRepository extends ServiceEntityRepository
         $report->setUserId($data['userId']);
         $report->setReportLat($data['reportLat']);
         $report->setReportLon($data['reportLon']);
-        $report->setDate(new \DateTime(date('H:i:s \O\n d/m/Y')));
+        $report->setDescription($data['description']);
+        if(!empty($data['delayMinutes'])) $report->setDelayMinutes($data['delayMinutes']);
 
         $em->persist($report);
+        $em->flush();
+
+        $this->confirmReport($report);
+    }
+
+    public function updateReport(Reports $report, array $data): void
+    {
+        $em = $this->getEntityManager();
+
+        if (!empty($data['type'])) $report->setType($data['type']);
+        if (!empty($data['description'])) $report->setDescription($data['description']);
+
         $em->flush();
     }
 
@@ -53,33 +72,32 @@ class ReportsRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    public function confirmReport()
+    public function confirmReport(Reports $report): void
     {
+        $em = $this->getEntityManager();
 
+        $connection = $em->getConnection();
+        $connection->insert('reports_count', [
+            'report_id' => $report->getId(),
+            'is_good' => 1
+        ]);
     }
 
-    //    /**
-    //     * @return Reports[] Returns an array of Reports objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('r')
-    //            ->andWhere('r.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('r.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    public function disproveReport(Reports $report): void
+    {
+        $em = $this->getEntityManager();
 
-    //    public function findOneBySomeField($value): ?Reports
-    //    {
-    //        return $this->createQueryBuilder('r')
-    //            ->andWhere('r.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+        $connection = $em->getConnection();
+        $connection->insert('reports_count', [
+            'report_id' => $report->getId(),
+            'is_good' => 0
+        ]);
+    }
+
+    public function deleteReport(Reports $report): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($report);
+        $em->flush();
+    }
 }

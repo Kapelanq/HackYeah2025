@@ -28,6 +28,15 @@ class StopTimesRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function findAloneStopTimesByTripId(string $tripId): array
+    {
+        return $this->createQueryBuilder('t')
+            ->where('t.tripId = :tripId')
+            ->setParameter('tripId', $tripId)
+            ->getQuery()
+            ->getResult();
+    }
+
     //    /**
     //     * @return StopTimes[] Returns an array of StopTimes objects
     //     */
