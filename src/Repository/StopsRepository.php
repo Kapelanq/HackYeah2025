@@ -2,34 +2,22 @@
 
 namespace App\Repository;
 
-use App\Entity\StopTimes;
+use App\Entity\Stops;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use App\Entity\Stops;
 
 /**
- * @extends ServiceEntityRepository<StopTimes>
+ * @extends ServiceEntityRepository<Stops>
  */
-class StopTimesRepository extends ServiceEntityRepository
+class StopsRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, StopTimes::class);
-    }
-
-    public function findStopTimesByTripId(string $tripId): array
-    {
-        return $this->createQueryBuilder('t')
-            ->select('s.stopName, s.stopLat, s.stopLon, t')
-            ->join(Stops::class, 's', 'WITH', 's.stopId = t.stopId')
-            ->andWhere('t.tripId = :tripId')
-            ->setParameter('tripId', $tripId)
-            ->getQuery()
-            ->getResult();
+        parent::__construct($registry, Stops::class);
     }
 
     //    /**
-    //     * @return StopTimes[] Returns an array of StopTimes objects
+    //     * @return Stops[] Returns an array of Stops objects
     //     */
     //    public function findByExampleField($value): array
     //    {
@@ -43,7 +31,7 @@ class StopTimesRepository extends ServiceEntityRepository
     //        ;
     //    }
 
-    //    public function findOneBySomeField($value): ?StopTimes
+    //    public function findOneBySomeField($value): ?Stops
     //    {
     //        return $this->createQueryBuilder('s')
     //            ->andWhere('s.exampleField = :val')

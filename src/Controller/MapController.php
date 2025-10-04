@@ -1,7 +1,6 @@
 <?php
 namespace App\Controller;
 
-use App\Repository\RoutesRepository;
 use App\Repository\StopTimesRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -24,31 +23,31 @@ class MapController extends AbstractController
     #[Route('/map', name: 'app_map')]
     public function getMap(): Response
     {
+        $stops = $this->repository->findStopTimesByTripId('2024_2025_1285959');
+
         $map = (new Map('default'))
-            ->center(new Point(49.985686, 20.056641))
-            ->zoom(6)
+            ->center(new Point($stops[0]['stopLat'], $stops[0]['stopLon']))
+            ->zoom(6);
 
-            ->addMarker(new Marker(
-                position: new Point(49.985686, 20.056641),
-                title: 'Lyon',
+        foreach ($stops as $stop) {
+            $map->addMarker(new Marker(
+                position: new Point($stop['stopLat'], $stop['stopLon']),
+                title: $stop['stopName'],
                 infoWindow: new InfoWindow(
-                    content: '<p>Thank you <a href="https://github.com/Kocal">@Kocal</a> for this component!</p>',
+                    content: "{$stop['stopName']}"
                 )
-            ))
-
-            ->options((new LeafletOptions())
-                ->tileLayer(new TileLayer(
-                    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-                    options: ['maxZoom' => 19]
-                ))
-            );
-
-        $data = $this->repository->findStopTimesByTripId('2024_2025_1285959');
+            ));
+        }
+//            ->options((new LeafletOptions())
+//                ->tileLayer(new TileLayer(
+//                    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+//                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+//                    options: ['maxZoom' => 19]
+//                ))
+//            );
 
         return new JsonResponse([
-            'map' => $map->toArray(),
-            'data' => $data,
+            'map' => $map->toArray()
         ]);
     }
 }
