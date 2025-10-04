@@ -1,6 +1,8 @@
 <?php
 namespace App\Controller;
 
+use App\Repository\RoutesRepository;
+use App\Repository\StopTimesRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,8 +16,13 @@ use Symfony\UX\Map\Point;
 
 class MapController extends AbstractController
 {
+    public function __construct(
+        public StopTimesRepository $repository,
+    ){
+
+    }
     #[Route('/map', name: 'app_map')]
-    public function __invoke(): Response
+    public function getMap(): Response
     {
         $map = (new Map('default'))
             ->center(new Point(49.985686, 20.056641))
@@ -37,8 +44,11 @@ class MapController extends AbstractController
                 ))
             );
 
+        $data = $this->repository->findStopTimesByTripId('2024_2025_1285959');
+
         return new JsonResponse([
-            'map' => $map,
+            'map' => $map->toArray(),
+            'data' => $data,
         ]);
     }
 }
