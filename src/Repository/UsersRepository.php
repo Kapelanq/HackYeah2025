@@ -31,6 +31,25 @@ class UsersRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function findUserById(int $id): ?Users
+    {
+        $em = $this->getEntityManager();
+        return $em->createQueryBuilder()
+            ->select('u')
+            ->from(Users::class, 'u')
+            ->where('u.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function addPoints(Users $user, int $points): void
+    {
+        $user->setPoints($user->getPoints() + $points);
+        $this->getEntityManager()->persist($user);
+        $this->getEntityManager()->flush();
+    }
+
 
     //    /**
     //     * @return Users[] Returns an array of Users objects

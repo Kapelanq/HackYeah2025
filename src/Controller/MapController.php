@@ -133,8 +133,9 @@ class MapController extends AbstractController
     public function disproveReport(Request $request): Response
     {
         $reportId = $request->query->get('reportId');
+        $userId = $request->query->get('userId');
         $report = $this->reportsRepository->findReportById($reportId);
-        $this->reportsRepository->disproveReport($report);
+        $this->reportsRepository->disproveReport($report, $userId);
 
         return new JsonResponse('Problem disproved', Response::HTTP_ACCEPTED);
     }
@@ -143,8 +144,9 @@ class MapController extends AbstractController
     public function confirmReport(Request $request): Response
     {
         $reportId = $request->query->get('reportId');
+        $userId = $request->query->get('userId');
         $report = $this->reportsRepository->findReportById($reportId);
-        $this->reportsRepository->confirmReport($report);
+        $this->reportsRepository->confirmReport($report, $userId);
 
         return new JsonResponse('Problem confirmed', Response::HTTP_ACCEPTED);
     }
@@ -155,7 +157,6 @@ class MapController extends AbstractController
         $userId = $request->query->get('userId');
         $ticketId = $request->query->get('ticketId');
 
-
         $ticket = $this->ticketsRepository->findOneBy(['userId' => $userId, 'ticketId' => $ticketId]);
 
         return new JsonResponse($ticket->toArray(), Response::HTTP_ACCEPTED);
@@ -164,17 +165,68 @@ class MapController extends AbstractController
     #[Route('/report-get-counts', name: 'app_report_get_counts')]
     public function getReportCounts(Request $request): Response
     {
-        $reportId = $request->query->get('reportId');
-        $report = $this->reportsRepository->findReportById($reportId);
+        $userId = $request->query->get('userId');
 
-        $count = $this->reportsCountRepository->groupGetCount($report);
-        $transformed = [];
-        foreach ($count as $item) {
-            $transformed[$item['isGood']] = $item['1'];
+        $reports = $this->reportsRepository->findReportByUserId($userId);
+
+        foreach ($reports as $report) {
+
+            $count = $this->reportsCountRepository->groupGetCount($report);
+
+            $transformed = [
+                false => 0,
+                true => 0,
+            ];
+            foreach ($count as $item) {
+                $transformed[$item['isGood']] = $item['1'];
+            }
+
+            if ($transformed[false] >= 10) {
+                $user = $this->usersRepository->findUserById($report->getUserId());
+                $user->setPoints($user->getPoints() - 5);
+                $this->reportsRepository->deleteReport($report);
+                return new JsonResponse('Report removed', Response::HTTP_OK);
+            }
+
+            if ($transformed[true] >= 10 && !$report->getCompleted()) {
+                $user = $this->usersRepository->findUserById($report->getUserId());
+                $user->setPoints($user->getPoints() + 5);
+                $report->setCompleted(true);
+                $this->entityManager->flush();
+                return new JsonResponse('Bonus points to user awarded', Response::HTTP_OK);
+            }
+
+            return new JsonResponse($transformed, Response::HTTP_ACCEPTED);
         }
 
-        return new JsonResponse($transformed, Response::HTTP_ACCEPTED);
+        return new JsonResponse('No data for this user', Response::HTTP_ACCEPTED);
     }
+
+    #[Route('/ticket-update', name: 'app_user')]
+    public function getUserData(Request $request): Response
+    {
+        $data = $request->getContent();
+        $array = json_decode($data, true);
+
+        $userId = $array['userId'];
+        $ticketId = $array['ticketId'];
+
+
+        $this->entityManager->createQuery('
+             UPDATE App\Entity\Tickets t
+             SET t.userId = :user
+             WHERE t.ticketId = :ticketId
+            ')
+            ->setParameter('user', $userId)
+            ->setParameter('ticketId', $ticketId)
+            ->execute();
+
+
+
+        $user = $this->usersRepository->findOneBy(['id' => $userId]);
+        return new JsonResponse($user->toArray(), Response::HTTP_ACCEPTED);
+    }
+
 
     #[Route('/analyze-trip', name: 'app_analyze_trip')]
     public function analyzeTrip(Request $request): Response
@@ -191,12 +243,25 @@ class MapController extends AbstractController
         ], Response::HTTP_ACCEPTED);
     }
 
-    #[Route('/login', name: 'app_login')]
-    public function login(Request $request): Response
+    #[Route('/tickets-all', name: 'app_tickets_all')]
+    public function getAllTicketsByUserId(Request $request): Response
     {
-        $data = json_decode($request->getContent(), true);
+        $userId = $request->query->get('userId');
+        $tickets = $this->entityManager->createQuery('
+             SELECT t
+             FROM App\Entity\Tickets t
+             WHERE t.userId = :userId
+            ')
+            ->setParameter('userId', $userId)
+            ->execute();
 
+        $data = [];
+        foreach ($tickets as $ticket) {
+            $data[] = $ticket->toArray();
+        }
 
-
+        return new JsonResponse([
+            'tickets' => $data,
+        ], 200);
     }
 }

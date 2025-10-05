@@ -63,37 +63,65 @@ class ReportsRepository extends ServiceEntityRepository
         $em->flush();
     }
 
-    public function findReportById(int $id): ?Reports
+    public function findReportByUserId(int $userId): ?array
     {
         return $this->createQueryBuilder('r')
             ->select('r')
-            ->where('r.id = :id')
-            ->setParameter('id', $id)
+            ->where('r.userId = :id')
+            ->setParameter('id', $userId)
             ->getQuery()
-            ->getOneOrNullResult();
+            ->getResult();
     }
 
-    public function confirmReport(Reports $report): void
+    public function confirmReport(Reports $report, int $userId): void
     {
         $em = $this->getEntityManager();
-
         $connection = $em->getConnection();
+
+        $existing = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('reports_count')
+            ->where('report_id = :reportId')
+            ->andWhere('user_id = :userId')
+            ->setParameter('reportId', $report->getId())
+            ->setParameter('userId', $userId)
+            ->fetchOne();
+
+        if ($existing) {
+            return;
+        }
+
         $connection->insert('reports_count', [
             'report_id' => $report->getId(),
-            'is_good' => 1
+            'is_good'   => 1,
+            'user_id'   => $userId,
         ]);
     }
 
-    public function disproveReport(Reports $report): void
+
+    public function disproveReport(Reports $report, int $userId): void
     {
         $em = $this->getEntityManager();
-
         $connection = $em->getConnection();
-        $connection->insert('reports_count', [
-            'report_id' => $report->getId(),
-            'is_good' => 0
-        ]);
+
+        $existing = $connection->createQueryBuilder()
+            ->select('id')
+            ->from('reports_count')
+            ->where('report_id = :reportId')
+            ->andWhere('user_id = :userId')
+            ->setParameter('reportId', $report->getId())
+            ->setParameter('userId', $userId)
+            ->fetchOne();
+
+        if (!$existing) {
+            $connection->insert('reports_count', [
+                'report_id' => $report->getId(),
+                'is_good'   => 0,
+                'user_id'   => $userId,
+            ]);
+        }
     }
+
 
     public function deleteReport(Reports $report): void
     {
@@ -121,5 +149,16 @@ class ReportsRepository extends ServiceEntityRepository
             ->getArrayResult();
 
         return $qb;
+    }
+
+    public function findReportById(float|bool|int|string|null $reportId)
+    {
+        $em = $this->getEntityManager();
+        $qb = $em->createQuery(
+            'SELECT r
+            FROM App\Entity\Reports r
+            WHERE r.id = :reportId'
+        )->setParameter('reportId', $reportId);
+        return $qb->getOneOrNullResult();
     }
 }
