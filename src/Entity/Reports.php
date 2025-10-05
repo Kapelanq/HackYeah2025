@@ -44,6 +44,9 @@ class Reports
     #[ORM\Column]
     private ?bool $completed = null;
 
+    #[ORM\Column]
+    private ?\DateTime $date = null;
+
 
     #[ORM\OneToMany(targetEntity: ReportsCount::class, mappedBy: 'report', cascade: ['persist', 'remove'])]
     private Collection $reportsCount;
@@ -153,6 +156,17 @@ class Reports
     public function setCompleted(bool $completed): static
     {
         $this->completed = $completed;
+        return $this;
+    }
+
+    public function getDate(): ?\DateTime
+    {
+        return $this->date;
+    }
+
+    public function setDate(\DateTime $date): static
+    {
+        $this->date = $date;
         return $this;
     }
 

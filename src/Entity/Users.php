@@ -79,4 +79,15 @@ class Users
 
         return $this;
     }
+
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'username' => $this->getUsername(),
+            'password' => $this->getPassword(),
+            'privileges' => $this->getPrivileges(),
+            'points' => $this->getPoints(),
+        ];
+    }
 }

@@ -45,6 +45,7 @@ class ReportsRepository extends ServiceEntityRepository
         $report->setReportLon($data['reportLon']);
         $report->setDescription($data['description']);
         if(!empty($data['delayMinutes'])) $report->setDelayMinutes($data['delayMinutes']);
+        $report->setDate(new \DateTime(date('Y-m-d H:i:s')));
 
         $em->persist($report);
         $em->flush();
@@ -99,5 +100,26 @@ class ReportsRepository extends ServiceEntityRepository
         $em = $this->getEntityManager();
         $em->remove($report);
         $em->flush();
+    }
+
+    public function groupReportsByTypeLastWeek(string $tripId): array
+    {
+        $em = $this->getEntityManager();
+
+        $oneWeekAgo = new \DateTime('-7 days');
+
+        $qb = $em->createQuery(
+            'SELECT r.type, COUNT(r.id) AS count, AVG(r.delayMinutes) AS avgDelay
+         FROM App\Entity\Reports r
+         WHERE r.tripId = :tripId
+         AND r.date >= :oneWeekAgo
+         AND r.type = :reportType'
+        )
+            ->setParameter('tripId', $tripId)
+            ->setParameter('oneWeekAgo', $oneWeekAgo)
+            ->setParameter('reportType', 'trainDelay')
+            ->getArrayResult();
+
+        return $qb;
     }
 }

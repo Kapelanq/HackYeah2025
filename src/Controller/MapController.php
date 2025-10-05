@@ -2,7 +2,6 @@
 namespace App\Controller;
 
 use App\Entity\Reports;
-use App\Entity\Stops;
 use App\Entity\Users;
 use App\Repository\ReportsCountRepository;
 use App\Repository\ReportsRepository;
@@ -147,7 +146,6 @@ class MapController extends AbstractController
         $report = $this->reportsRepository->findReportById($reportId);
         $this->reportsRepository->confirmReport($report);
 
-
         return new JsonResponse('Problem confirmed', Response::HTTP_ACCEPTED);
     }
 
@@ -170,7 +168,35 @@ class MapController extends AbstractController
         $report = $this->reportsRepository->findReportById($reportId);
 
         $count = $this->reportsCountRepository->groupGetCount($report);
+        $transformed = [];
+        foreach ($count as $item) {
+            $transformed[$item['isGood']] = $item['1'];
+        }
 
-        return new JsonResponse($count, Response::HTTP_ACCEPTED);
+        return new JsonResponse($transformed, Response::HTTP_ACCEPTED);
+    }
+
+    #[Route('/analyze-trip', name: 'app_analyze_trip')]
+    public function analyzeTrip(Request $request): Response
+    {
+        $tripId = $request->query->get('tripId');
+        $data = $this->reportsRepository->groupReportsByTypeLastWeek($tripId);
+
+        $message = "Na podstawie ostatnich {$data[0]['count']} zgłoszeń z ostatniego tygodnia
+        można stwierdzić, że potencjalne opóźnienia na trasie mogą wynosić około: " . round($data[0]['avgDelay'], 0, PHP_ROUND_HALF_UP) . " minut";
+
+        return new JsonResponse([
+            'data' => $data[0],
+            'message' => $message
+        ], Response::HTTP_ACCEPTED);
+    }
+
+    #[Route('/login', name: 'app_login')]
+    public function login(Request $request): Response
+    {
+        $data = json_decode($request->getContent(), true);
+
+
+
     }
 }
