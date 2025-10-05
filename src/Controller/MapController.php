@@ -264,4 +264,16 @@ class MapController extends AbstractController
             'tickets' => $data,
         ], 200);
     }
+
+    #[Route('/train', name: 'app_train')]
+    public function getTrain(Request $request): Response
+    {
+        $tripId = $request->query->get('tripId');
+
+        $train = $this->trainsRepository->getOneByTripId($tripId);
+
+        return new JsonResponse([
+            'train' => $train->toArray(),
+        ]);
+    }
 }
