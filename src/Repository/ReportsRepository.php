@@ -50,7 +50,6 @@ class ReportsRepository extends ServiceEntityRepository
         $em->persist($report);
         $em->flush();
 
-        $this->confirmReport($report);
     }
 
     public function updateReport(Reports $report, array $data): void
